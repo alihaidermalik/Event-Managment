@@ -4,9 +4,19 @@ from django.contrib.messages.views import SuccessMessageMixin
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DetailView, RedirectView, UpdateView
+from .api.serializers import UserSerializer
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework import viewsets
 
 User = get_user_model()
 
+class UserViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint that allows users to be viewed.
+    """
+    permission_classes =([])
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
 
 class UserDetailView(LoginRequiredMixin, DetailView):
 
@@ -43,3 +53,16 @@ class UserRedirectView(LoginRequiredMixin, RedirectView):
 
 
 user_redirect_view = UserRedirectView.as_view()
+
+@api_view(['POST'])
+def create_auth(request):
+    serialized = UserSerializer(data=request.DATA)
+    if serialized.is_valid():
+        User.objects.create_user(
+            serialized.init_data['email'],
+            serialized.init_data['username'],
+            serialized.init_data['password']
+        )
+        return Response(serialized.data, status=status.HTTP_201_CREATED)
+    else:
+        return Response(serialized._errors, status=status.HTTP_400_BAD_REQUEST)
