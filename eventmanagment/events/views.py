@@ -1,12 +1,11 @@
 from django.shortcuts import render
 from events.models import Event
-from events.forms import EventForm
 from .serializers import EventSerializer, EventListSerializer
 from rest_framework import viewsets
 from eventmanagment.users.models import User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import generics
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 class EventList(generics.ListAPIView):
@@ -18,19 +17,6 @@ class EventDetail(generics.RetrieveAPIView):
     queryset = Event.objects.prefetch_related('attendees').select_related("owner").all()
     serializer_class = EventSerializer
     permission_classes = (IsAuthenticated,)
-
-    # def event_exists(self, pk):
-    #     filter_event = Event.objects.filter(id=pk)
-    #     if filter_event.exists():
-    #         return filter_event.last()
-
-    # def is_owner(self, request, pk):
-    #     event = Event.objects.get(id=pk)
-    #     user = request.user
-    #     if user == event.owner:
-    #         return True
-    #     else:
-    #         return False
 
     def delete(self, request, pk):
         filter_event = Event.objects.filter(id=pk)
@@ -73,3 +59,15 @@ class EventDetail(generics.RetrieveAPIView):
         else:
             return Response({"detail":"event not found"})
 
+@api_view(['GET'])
+@permission_classes((IsAuthenticated, ))
+def attend_event_endpoint(request, pk):
+    filter_event = Event.objects.filter(id=pk)
+    if filter_event.exists():
+        if filter_event.filter(attendees=request.user):
+            return Response({"detail":"You are already in the list"})
+        event = Event.objects.get(id=pk)
+        event.attendees.add(request.user)
+        return Response({"detail":"Congrates you are added to the list."})
+    else:
+        return Response({"detail":"event not found"})
